@@ -1,114 +1,132 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { motion } from 'framer-motion';
+import axios from "axios";
+import { useEffect, useState } from "react";
 
-const AttendanceTracker = () => {
-  const API_URL = "http://localhost:5000/api/posts"; // Example URL
+const App = () => {
+  const API_URL = "";
 
+  const [posts, setPosts] = useState([]);
+  const [newPost, setNewPost] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [editPostId, setEditPostId] = useState(null);
 
-  // List of students
-  const students = [
-    "John Doe", "Jane Smith", "Sam Wilson", "Emily Davis", "Michael Brown",
-    "Chris Johnson", "Sarah Lee", "Jessica Jones", "Daniel Harris", "Sophia Miller",
-    "James Anderson", "Olivia Garcia", "Ethan Martin", "Ava Robinson", "Liam Clark",
-    "Isabella Lewis", "Noah Walker", "Mia Hall", "Lucas Allen", "Amelia Young",
-    "Mason Hernandez", "Charlotte King", "Logan Wright", "Harper Hill", "Elijah Scott",
-    "Abigail Green", "Oliver Adams", "Chloe Baker", "Alexander Campbell", "Ella Moore"
-  ];
-
-  const [attendance, setAttendance] = useState(
-    students.reduce((acc, student) => {
-      acc[student] = null; // Initialize attendance for each student as null
-      return acc;
-    }, {})
-  );
-
-  const [attendanceRecords, setAttendanceRecords] = useState([]);
-
-  // Update attendance status for a student
-  const updateAttendance = (student, status) => {
-    setAttendance((prev) => ({
-      ...prev,
-      [student]: status,
-    }));
-  };
-
-  // Submit all attendance records
-  const submitAttendance = async () => {
-    const records = Object.entries(attendance).map(([name, status]) => ({
-      name,
-      status,
-      timestamp: new Date().toISOString(),
-    }));
-
+  const fetchPosts = async () => {
     try {
-      const response = await axios.post(API_URL, records);
-      setAttendanceRecords(response.data);
-      alert("Attendance submitted successfully!");
+      const response = await axios.get(API_URL);
+      setPosts(response.data);
     } catch (error) {
-      console.error("Error submitting attendance:", error);
+      console.log("Error fetching posts:", error);
     }
   };
 
+  const createPost = async () => {
+    if (!newPost || !newDescription) return;
+
+    try {
+      const response = await axios.post(API_URL, {
+        course: newPost,
+        description: newDescription,
+      });
+      setPosts([...posts, response.data]);
+      setNewPost("");
+      setNewDescription("");
+    } catch (error) {
+      console.log("Error creating post", error);
+    }
+  };
+
+  const updatePost = async (id) => {
+    try {
+      const response = await axios.put(`${API_URL}/${id}`, {
+        course: newPost,
+        description: newDescription,
+      });
+      setPosts(posts.map((post) => (post._id === id ? response.data : post)));
+      setNewPost("");
+      setNewDescription("");
+      setEditPostId(null);
+    } catch (error) {
+      console.error("Error editing post", error);
+    }
+  };
+
+  const deletePost = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/${id}`);
+      setPosts(posts.filter((post) => post._id !== id));
+    } catch (error) {
+      console.error("Error deleting post", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold text-center mb-4">Attendance Tracker</h1>
+      <h1 className="text-2xl font-bold text-center mb-4">Posts</h1>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.7 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-      >
-        {students.map((student) => (
-          <motion.div
-            key={student}
-            className="card bg-gray-100 shadow-lg p-4 flex flex-col justify-between"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+      <div className="card bg-base-100 shadow-xl p-4">
+        <div className="form-control">
+          <input
+            type="text"
+            placeholder="Enter course"
+            className="input input-bordered mb-2"
+            value={newPost}
+            onChange={(e) => setNewPost(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Enter description"
+            className="input input-bordered mb-2"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+          />
+          <button
+            className={`btn w-full ${
+              editPostId ? "btn-warning" : "btn-primary"
+            }`}
+            onClick={editPostId ? () => updatePost(editPostId) : createPost}
           >
-            <h2 className="text-lg font-semibold mb-2">{student}</h2>
-            <div className="flex justify-between gap-2">
-              <button
-                className={`btn btn-sm ${
-                  attendance[student] === "Present" ? "btn-success" : "btn-outline"
-                }`}
-                onClick={() => updateAttendance(student, "Present")}
-              >
-                Present
-              </button>
-              <button
-                className={`btn btn-sm ${
-                  attendance[student] === "Absent" ? "btn-error" : "btn-outline"
-                }`}
-                onClick={() => updateAttendance(student, "Absent")}
-              >
-                Absent
-              </button>
-              <button
-                className={`btn btn-sm ${
-                  attendance[student] === "Leave" ? "btn-warning" : "btn-outline"
-                }`}
-                onClick={() => updateAttendance(student, "Leave")}
-              >
-                Leave
-              </button>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
+            {editPostId ? "Update Post" : "Create Post"}
+          </button>
+        </div>
+      </div>
 
-      <div className="text-center mt-6">
-        <button
-          className="btn btn-primary px-6 py-2 text-lg"
-          onClick={submitAttendance}
-        >
-          Submit Attendance
-        </button>
+      <div className="mt-4">
+        <ol className="space-y-4">
+          {posts.map((post) => (
+            <li key={post._id} className="card bg-base-100 shadow-md p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="font-semibold">{post.course}</h2>
+                  <p className="text-gray-600">{post.description}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="btn btn-outline btn-warning btn-sm"
+                    onClick={() => {
+                      setEditPostId(post._id);
+                      setNewPost(post.course);
+                      setNewDescription(post.description);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn btn-outline btn-error btn-sm"
+                    onClick={() => deletePost(post._id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );
 };
 
-export default AttendanceTracker;
+export default App;
